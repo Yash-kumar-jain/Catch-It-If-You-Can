@@ -1,17 +1,562 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="margin.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ball Catcher Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: radial-gradient(ellipse at center, #1a1b2e 0%, #0c0d1a 100%);
+      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .score-display {
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 8px rgba(100, 200, 255, 0.7);
+    }
+    .basket {
+      box-shadow: 0 0 15px rgba(255, 165, 0, 0.7);
+      transition: transform 0.05s linear;
+      position: absolute;
+      bottom: 1%;
+      width: 12rem;
+      height: 2rem;
+      background: linear-gradient(to right, #ff8c00, #ffa500);
+      border-radius: 0.5rem;
+      z-index: 10;
+    }
+    .ball {
+      box-shadow: 0 0 20px rgba(255, 50, 50, 0.8);
+      animation: pulse 0.5s infinite alternate;
+      position: absolute;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      z-index: 5;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 15;
+    }
+    .speed-indicator {
+      position: absolute;
+      top: 6rem;
+      left: 1.5rem;
+      color: white;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+      font-size: 1.125rem;
+    }
+    .miss-counter {
+      position: absolute;
+      top: 9rem;
+      left: 1.5rem;
+      color: white;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.125rem;
+    }
+    .game-over-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      color: white;
+      font-family: 'Orbitron', sans-serif;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .game-over-modal.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .game-over-content {
+      background: #1a1b2e;
+      padding: 2rem;
+      border-radius: 1rem;
+      border: 2px solid #ff4d4d;
+      max-width: 80%;
+      transform: scale(0.8);
+      transition: transform 0.5s ease, box-shadow 0.5s ease;
+      box-shadow: 0 0 0 rgba(255, 77, 77, 0);
+    }
+    .game-over-modal.active .game-over-content {
+      transform: scale(1);
+      box-shadow: 0 0 30px rgba(255, 77, 77, 0.7);
+    }
+    .restart-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: linear-gradient(to right, #ff4d4d, #f9cb28);
+      border: none;
+      border-radius: 0.5rem;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .restart-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(255, 77, 77, 0.7);
+    }
+    .controls-info {
+      position: absolute;
+      bottom: 3rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.8rem;
+    }
+    .miss-animation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 0, 0, 0.2);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .miss-animation.active {
+      opacity: 1;
+    }
+    .blast-effect {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(255,200,50,0.6) 0%, rgba(255,150,0,0.4) 50%, rgba(255,100,0,0) 80%);
+      border-radius: 50%;
+      transform: scale(0);
+      animation: gentle-blast 0.4s forwards;
+      z-index: 20;
+    }
+    @keyframes gentle-blast {
+      0% { transform: scale(0); opacity: 1; }
+      70% { transform: scale(1.2); opacity: 0.8; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+  </style>
 </head>
-<body>
-    <div id="box"></div>
-    <div id="box2">
-        <button id="b" >
-            <a target="_blank" href="https://www.youtube.com/"></a>
-        </button>
+<body class="overflow-hidden select-none">
+  <div id="game" class="relative w-full h-screen">
+    <!-- Starfield background -->
+    <div id="stars" class="absolute inset-0 overflow-hidden"></div>
+    
+    <div id="basket" class="basket"></div>
+    
+    <div id="balls-container" class="absolute inset-0"></div>
+    
+    <div id="score" class="score-display absolute top-6 left-6 text-white text-2xl font-bold">SCORE: <span>0</span></div>
+    
+    <div id="high-score" class="score-display absolute top-6 right-6 text-white text-2xl font-bold">HIGH: <span id="high-score-value">0</span></div>
+    
+    <div id="speed-indicator" class="speed-indicator">SPEED: <span>1x</span></div>
+    
+    <div id="miss-counter" class="miss-counter">MISSES: <span>0/3</span></div>
+    
+    <div id="controls-info" class="controls-info">
+      <span id="desktop-controls">Use MOUSE or ARROW KEYS to move</span>
+      <span id="mobile-controls" class="hidden">Touch and drag to move</span>
     </div>
+    
+    <div id="miss-animation" class="miss-animation"></div>
+  </div>
+
+  <div id="game-over-modal" class="game-over-modal">
+    <div class="game-over-content">
+      <h1 class="text-3xl text-red-500 mb-4">GAME OVER!</h1>
+      <p class="text-xl mb-2">Your Score: <span id="final-score" class="text-amber-300">0</span></p>
+      <p class="text-lg mb-4">High Score: <span id="final-high-score" class="text-emerald-300">0</span></p>
+      <button id="restart-btn" class="restart-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script>
+    // Game elements
+    const basket = document.getElementById("basket");
+    const ballsContainer = document.getElementById("balls-container");
+    const scoreDisplay = document.getElementById("score").querySelector('span');
+    const highScoreDisplay = document.getElementById("high-score-value");
+    const speedIndicator = document.getElementById("speed-indicator").querySelector('span');
+    const missCounter = document.getElementById("miss-counter").querySelector('span');
+    const starsContainer = document.getElementById("stars");
+    const gameOverModal = document.getElementById("game-over-modal");
+    const finalScoreDisplay = document.getElementById("final-score");
+    const finalHighScoreDisplay = document.getElementById("final-high-score");
+    const restartBtn = document.getElementById("restart-btn");
+    const desktopControls = document.getElementById("desktop-controls");
+    const mobileControls = document.getElementById("mobile-controls");
+    const missAnimation = document.getElementById("miss-animation");
+    
+    // Game variables
+    let score = 0;
+    let highScore = 0;
+    let basketX = 0;
+    let baseSpeed = 15;
+    let isPaused = false;
+    let activeBalls = 0;
+    let maxBalls = 1;
+    let speedMultiplier = 1;
+    let misses = 0;
+    let gameActive = true;
+    let isMobile = false;
+    let touchStartX = 0;
+    let basketStartX = 0;
+    const targetFPS = 120;
+    
+    // NEW: Proper high score system
+    function initializeHighScore() {
+      // Clear any existing high score from localStorage (for testing)
+      // localStorage.removeItem('ballCatcherHighScore');
+      
+      // Get high score from localStorage or set to 0
+      const savedHighScore = localStorage.getItem('ballCatcherHighScore');
+      highScore = savedHighScore ? parseInt(savedHighScore) : 0;
+      highScoreDisplay.textContent = highScore;
+      finalHighScoreDisplay.textContent = highScore;
+    }
+    
+    // NEW: Save high score properly
+    function updateHighScore() {
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('ballCatcherHighScore', highScore.toString());
+        highScoreDisplay.textContent = highScore;
+        finalHighScoreDisplay.textContent = highScore;
+      }
+    }
+    
+    // Check if mobile device
+    function checkMobile() {
+      isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        desktopControls.classList.add('hidden');
+        mobileControls.classList.remove('hidden');
+      }
+    }
+    
+    // Initialize game
+    function initGame() {
+      // Reset all variables
+      score = 0;
+      basketX = window.innerWidth / 2 - 64;
+      baseSpeed = 15;
+      activeBalls = 0;
+      maxBalls = 1;
+      speedMultiplier = 1;
+      misses = 0;
+      gameActive = true;
+      
+      // Update displays
+      scoreDisplay.textContent = score;
+      speedIndicator.textContent = `${speedMultiplier}x`;
+      missCounter.textContent = `0/3`;
+      
+      // Clear balls
+      ballsContainer.innerHTML = '';
+      
+      // Hide game over modal
+      gameOverModal.classList.remove('active');
+      
+      // Reset basket position
+      updateBasketPosition(basketX);
+      
+      // Start game
+      startGame();
+    }
+    
+    // Create starfield background
+    function createStars() {
+      const starsCount = 100;
+      for (let i = 0; i < starsCount; i++) {
+        const star = document.createElement('div');
+        star.className = 'absolute bg-white rounded-full';
+        star.style.width = `${Math.random() * 3}px`;
+        star.style.height = star.style.width;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.opacity = Math.random();
+        star.style.animation = `twinkle ${1 + Math.random() * 2}s infinite alternate`;
+        
+        if (!document.getElementById('star-animation')) {
+          const style = document.createElement('style');
+          style.id = 'star-animation';
+          style.textContent = `
+            @keyframes twinkle {
+              0% { opacity: 0.2; }
+              100% { opacity: ${0.8 + Math.random() * 0.2}; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+        
+        starsContainer.appendChild(star);
+      }
+    }
+    
+    // NEW: Gentle blast effect
+    function createBlastEffect(x, y, color) {
+      const blast = document.createElement('div');
+      blast.className = 'blast-effect';
+      blast.style.left = `${x - 30}px`;
+      blast.style.top = `${y - 30}px`;
+      blast.style.background = `radial-gradient(circle, ${color} 0%, rgba(255,150,0,0.4) 50%, rgba(255,100,0,0) 80%)`;
+      
+      document.getElementById('game').appendChild(blast);
+      
+      // Remove blast after animation completes
+      setTimeout(() => {
+        blast.remove();
+      }, 400);
+    }
+    
+    // Create particle effect
+    function createParticles(x, y, color) {
+      const particleCount = 20;
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.background = color;
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.width = `${3 + Math.random() * 5}px`;
+        particle.style.height = particle.style.width;
+        
+        document.getElementById('game').appendChild(particle);
+        
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 2 + Math.random() * 3;
+        const lifetime = 200 + Math.random() * 300;
+        
+        let opacity = 1;
+        let currentTime = 0;
+        
+        const animateParticle = () => {
+          currentTime += 1000 / targetFPS;
+          const progress = currentTime / lifetime;
+          
+          if (progress >= 1) {
+            particle.remove();
+            return;
+          }
+          
+          opacity = 1 - progress;
+          particle.style.opacity = opacity;
+          particle.style.transform = `translate(${Math.cos(angle) * velocity * currentTime / 5}px, 
+                                              ${Math.sin(angle) * velocity * currentTime / 5}px)`;
+          
+          requestAnimationFrame(animateParticle);
+        };
+        
+        requestAnimationFrame(animateParticle);
+      }
+    }
+    
+    // Update basket position
+    function updateBasketPosition(newX) {
+      const basketWidth = basket.offsetWidth;
+      const maxX = window.innerWidth - basketWidth;
+      basketX = Math.max(0, Math.min(newX, maxX));
+      basket.style.left = `${basketX}px`;
+    }
+    
+    // Mouse movement controls
+    document.addEventListener("mousemove", e => {
+      if (isPaused || !gameActive || isMobile) return;
+      updateBasketPosition(e.clientX - basket.offsetWidth / 2);
+    });
+    
+    // Touch controls
+    document.addEventListener("touchstart", e => {
+      if (!gameActive || !isMobile) return;
+      touchStartX = e.touches[0].clientX;
+      basketStartX = basketX;
+    });
+    
+    document.addEventListener("touchmove", e => {
+      if (isPaused || !gameActive || !isMobile) return;
+      e.preventDefault();
+      const touchX = e.touches[0].clientX;
+      const moveX = basketStartX + (touchX - touchStartX);
+      updateBasketPosition(moveX);
+    });
+    
+    // Keyboard controls
+    document.addEventListener("keydown", e => {
+      if (isPaused || !gameActive || isMobile) return;
+      
+      const moveStep = 30;
+      let newX = basketX;
+      
+      if (e.key === "ArrowLeft") {
+        newX -= moveStep;
+      } else if (e.key === "ArrowRight") {
+        newX += moveStep;
+      }
+      
+      updateBasketPosition(newX);
+    });
+    
+    // Update game difficulty based on score
+    function updateDifficulty() {
+      speedMultiplier = 0.5 + Math.floor(score / 5) * 0.2;
+      baseSpeed = 15 * speedMultiplier;
+      speedIndicator.textContent = `${speedMultiplier.toFixed(1)}x`;
+      maxBalls = Math.min(3, 1 + Math.floor(score / 10));
+    }
+    
+    // Handle missed ball
+    function handleMiss() {
+      misses++;
+      missCounter.textContent = `${misses}/3`;
+      
+      // Show miss animation
+      missAnimation.classList.add('active');
+      setTimeout(() => {
+        missAnimation.classList.remove('active');
+      }, 300);
+      
+      if (misses >= 3) {
+        endGame();
+      }
+    }
+    
+    // End game
+    function endGame() {
+      gameActive = false;
+      finalScoreDisplay.textContent = score;
+      
+      // Update high score if current score is higher
+      updateHighScore();
+      
+      gameOverModal.classList.add('active');
+    }
+    
+    // Create a new ball
+    function createBall() {
+      if (isPaused || !gameActive || activeBalls >= maxBalls) return;
+      
+      activeBalls++;
+      const ball = document.createElement('div');
+      ball.className = 'ball';
+      ballsContainer.appendChild(ball);
+      
+      let ballY = 0;
+      let ballX = Math.random() * (window.innerWidth - 32);
+      ball.style.left = `${ballX}px`;
+      ball.style.top = "0px";
+      
+      const hue = Math.floor(Math.random() * 60) + 10;
+      const ballColor = `hsl(${hue}, 100%, 60%)`;
+      ball.style.background = `linear-gradient(to bottom right, ${ballColor}, hsl(${hue + 20}, 100%, 50%))`;
+      ball.style.boxShadow = `0 0 20px hsla(${hue}, 100%, 60%, 0.8)`;
+      
+      const startTime = Date.now();
+      
+      const updateBallPosition = (timestamp) => {
+        if (isPaused || !gameActive) return;
+        
+        const elapsed = (Date.now() - startTime) / 1000;
+        ballY = baseSpeed * elapsed * 60;
+        ball.style.top = `${ballY}px`;
+        
+        const basketRect = basket.getBoundingClientRect();
+        const ballRect = ball.getBoundingClientRect();
+        
+        if (ballY >= window.innerHeight - 40) {
+          if (
+            ballRect.left + 10 > basketRect.left &&
+            ballRect.right - 10 < basketRect.right
+          ) {
+            score++;
+            scoreDisplay.textContent = score;
+            
+            // Create gentle blast effect
+            createBlastEffect(
+              ballRect.left + ballRect.width / 2,
+              ballRect.top + ballRect.height / 2,
+              ballColor
+            );
+            
+            // Create particles
+            createParticles(
+              ballRect.left + ballRect.width / 2,
+              ballRect.top + ballRect.height / 2,
+              ballColor
+            );
+            
+            updateDifficulty();
+          } else {
+            handleMiss();
+          }
+          
+          ball.remove();
+          activeBalls--;
+          
+          if (gameActive) {
+            createBall();
+          }
+          return;
+        }
+        
+        requestAnimationFrame(updateBallPosition);
+      };
+      
+      requestAnimationFrame(updateBallPosition);
+    }
+    
+    // Start game with initial balls
+    function startGame() {
+      for (let i = 0; i < maxBalls; i++) {
+        setTimeout(() => createBall(), i * 500);
+      }
+    }
+    
+    // Pause game when window loses focus
+    window.addEventListener('blur', () => {
+      isPaused = true;
+    });
+    
+    window.addEventListener('focus', () => {
+      isPaused = false;
+    });
+    
+    // Restart button
+    restartBtn.addEventListener('click', initGame);
+    
+    // Initialize game
+    createStars();
+    checkMobile();
+    initializeHighScore(); // Initialize high score system
+    initGame();
+    
+    // Responsive adjustments
+    window.addEventListener('resize', () => {
+      updateBasketPosition(basketX);
+    });
+  </script>
 </body>
 </html>
